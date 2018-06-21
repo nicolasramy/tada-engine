@@ -21,9 +21,9 @@ setup(
     include_package_data=True,
     entry_points={
         'console_scripts': [
-            'cowbell-engine-master=cowbell_engine.command:master_command',
+            'cowbell-engine-master=cowbell_engine.__main__:master_command',
             'cowbell-engine-minion=cowbell_engine.__main__:minion',
-            'cowbell-engine-proxy=cowbell_engine.command:proxy_command',
+            'cowbell-engine-proxy=cowbell_engine.__main__:proxy_command',
         ],
     },
     install_requires=[
