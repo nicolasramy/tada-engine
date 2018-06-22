@@ -27,6 +27,7 @@ setup(
         ],
     },
     install_requires=[
+        'termcolor',
         'pyzmq',
         'setproctitle>=1.1.0'
     ],

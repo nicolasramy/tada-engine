@@ -1,57 +1,37 @@
 # -*- coding: utf-8 -*-
 
-# TODO: ConfigParser -- https://docs.python.org/3/library/configparser.html
-
 import argparse
+import configparser
+import os
 import sys
 
-from .master import MasterProgram, MasterService
-from .minion import MinionProgram, MinionService
-from .proxy import ProxyProgram, ProxyService
+from .master import MasterService
+from .minion import MinionService
+from .proxy import ProxyService
+
+
+def default_configuration_filename():
+    return os.path.join(
+        os.path.dirname(os.path.realpath(__file__)),
+        'config.ini'
+    )
 
 
 def master_command():
-    parser = argparse.ArgumentParser(description='Cowbell Engine Master')
-    parser.add_argument('action',
-                        help='start|stop|restart|status')
-    parser.add_argument('--no-daemon', action='store_true',
-                        help='run as a normal program')
-
-    args = parser.parse_args()
-
-    proxy_instance = MasterProgram() if args.no_daemon else MasterService()
-
-    if args.action in dir(proxy_instance):
-        getattr(proxy_instance, args.action)()
-        sys.exit(0)
-
-    else:
-        parser.print_help()
-        sys.exit(2)
+    command_handler('Cowbell Engine Master', MasterService)
 
 
 def minion_command():
-    parser = argparse.ArgumentParser(description='Cowbell Engine Minion')
-    parser.add_argument('action',
-                        help='start|stop|restart|status')
-    parser.add_argument('--no-daemon', action='store_true',
-                        help='run as a normal program')
-
-    args = parser.parse_args()
-
-    proxy_instance = MinionProgram() if args.no_daemon else MinionService()
-
-    if args.action in dir(proxy_instance):
-        getattr(proxy_instance, args.action)()
-        sys.exit(0)
-
-    else:
-        parser.print_help()
-        sys.exit(2)
+    command_handler('Cowbell Engine Minion', MinionService)
 
 
 def proxy_command():
-    parser = argparse.ArgumentParser(description='Cowbell Engine Proxy')
+    command_handler('Cowbell Engine Proxy', ProxyService)
+
+
+def command_handler(name, service_class):
+
+    parser = argparse.ArgumentParser(description=name)
     parser.add_argument('action',
                         help='start|stop|restart|status')
     parser.add_argument('--no-daemon', action='store_true',
@@ -59,7 +39,10 @@ def proxy_command():
 
     args = parser.parse_args()
 
-    proxy_instance = ProxyProgram() if args.no_daemon else ProxyService()
+    config = configparser.ConfigParser()
+    config.read_file(open(default_configuration_filename()))
+
+    proxy_instance = service_class(config, not args.no_daemon)
 
     if args.action in dir(proxy_instance):
         getattr(proxy_instance, args.action)()
@@ -68,3 +51,4 @@ def proxy_command():
     else:
         parser.print_help()
         sys.exit(2)
+

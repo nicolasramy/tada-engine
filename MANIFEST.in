@@ -1,0 +1,5 @@
+include cowbell_engine/config.ini
+include LICENSE
+include README.md
+include setup.py
+

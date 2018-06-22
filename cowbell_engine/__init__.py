@@ -2,131 +2,154 @@
 
 import atexit
 import os
+import logging
+import logging.handlers
 import time
 from signal import SIGTERM
 import sys
 
 import setproctitle
+from termcolor import colored
 
 __version__ = '0.0.0'
 
 
-def write_pid_file(pid_file, pid):
-    if not os.path.exists(pid_file):
-        open(pid_file, 'w+').write("{}\n".format(pid))
+class Messenger:
+    @staticmethod
+    def _write(message):
+        sys.stdout.write("{}\n".format(message))
+
+    def log(self, message):
+        self._write(message)
+
+    def info(self, message):
+        self._write(colored(message, 'green'))
+
+    def warning(self, message):
+        self._write(colored(message, 'yellow'))
+
+    def error(self, message):
+        self._write(colored(message, 'red'))
+
+    def critical(self, message):
+        self._write(colored(message, 'white', 'on_red'))
 
 
-def read_pid_file(pid_file):
-    """
-    Get pid from file
-    :param pid_file:
-    :return:
-    """
-    try:
-        pid_file_resource = open(pid_file, 'r')
-        pid = int(pid_file_resource.read().strip())
-        pid_file_resource.close()
-    except IOError:
-        pid = None
+class Logger:
 
-    return pid
+    FORMAT = '%(asctime)s %(name)s %(levelname)s %(message)s'
 
+    def __init__(self, name, level, output, is_daemon=True):
+        self.logger = logging.getLogger(name)
+        self.logger.setLevel(level)
 
-def remove_pid_file(pid_file):
-    try:
-        os.remove(pid_file)
-    except OSError:
-        message = "Unable to remove pid_file %s\n"
-        sys.stderr.write(message % pid_file)
+        formatter = logging.Formatter(self.FORMAT)
 
+        handler = logging.FileHandler(output)
+        handler.setLevel(level)
+        handler.setFormatter(formatter)
+        self.logger.addHandler(handler)
 
-def check_pid(pid_file, raise_exit=False):
-    """
-    Check pid file existence
-    :param pid_file:
-    :param raise_exit:
-    :return:
-    """
-    pid = read_pid_file(pid_file)
-    if pid and os.path.exists("/proc/{}".format(pid)):
-        if raise_exit:
-            message = "pid_file %s already exist. Service already running?\n"
-            sys.stderr.write(message % pid_file)
-            sys.exit(1)
+        if is_daemon:
+            self.messenger = Messenger()
+
+        else:
+            self.messenger = None
+
+            handler = logging.StreamHandler()
+            handler.setLevel(level)
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
 
 
-def kill_pid(pid_file):
-
-    pid = read_pid_file(pid_file)
-    status = 0
-
-    try:
-        while 1:
-            os.kill(pid, SIGTERM)
-            time.sleep(0.1)
-    except ProcessLookupError:
-        remove_pid_file(pid_file)
-
-    except InterruptedError as err:
-        print(err)
-        status = 3
-
-    finally:
-        sys.exit(status)
-
-
-class Program:
-    """
-    A generic program class.
-
-    Usage: subclass the Program class and override the run() method
-    """
-
-    def __init__(self, name, pid_file, stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
-        self.name = name + ' --no-daemon'
-        self.pid_file = pid_file
-
-        self.stdin = stdin
-        self.stdout = stdout
-        self.stderr = stderr
-
-    def start(self):
-        check_pid(self.pid_file)
-
-        atexit.register(self.stop)
-        setproctitle.setproctitle(self.name)
-
-        write_pid_file(self.pid_file, os.getpid())
-
-        # Start the program
-        self.run()
-
-    def stop(self):
-        # Try killing the Program process
-        kill_pid(self.pid_file)
-
-    def run(self):
-        """
-        You should override this method when you subclass Program. It will be called after the process has been
-        started by start().
-        """
-        raise NotImplementedError("Should have implemented run")
-
-
-class Service:
+class Service(Logger):
     """
     A generic service class.
 
     Usage: subclass the Service class and override the run() method
     """
 
-    def __init__(self, name, pid_file, stdin='/dev/null', stdout='/dev/null', stderr='/dev/null'):
+    def __init__(self, name, pid_file, log_level, log_file, is_daemon=True):
         self.name = name
         self.pid_file = pid_file
 
-        self.stdin = stdin
-        self.stdout = stdout
-        self.stderr = stderr
+        self.is_daemon = is_daemon
+
+        self.stdin = '/dev/null'
+        self.stdout = '/dev/null'
+        self.stderr = '/dev/null'
+
+        super(Service, self).__init__(name, log_level, log_file, is_daemon)
+
+    def _write_pid_file(self, pid):
+
+        if not os.path.exists(self.pid_file):
+            open(self.pid_file, 'w+').write("{}\n".format(pid))
+        else:
+            message = "Unable to write pid, {} already exists".format(self.pid_file)
+            if self.is_daemon:
+                self.messenger.error(message)
+            else:
+                self.logger.error(message)
+            sys.exit(3)
+
+    def _read_pid_file(self):
+        """
+        Get pid from file
+        """
+        try:
+            pid_file_resource = open(self.pid_file, 'r')
+            pid = int(pid_file_resource.read().strip())
+            pid_file_resource.close()
+        except (ValueError, IOError):
+            pid = None
+
+        return pid
+
+    def _remove_pid_file(self):
+        try:
+            os.remove(self.pid_file)
+        except OSError:
+            message = "Unable to remove pid_file {}"
+            self.logger.warning(message.format(self.pid_file))
+
+    def _check_pid(self):
+        """
+        Check pid file existence
+        """
+        pid = self._read_pid_file()
+        return pid and os.path.exists("/proc/{}".format(pid))
+
+    def _kill_pid(self):
+
+        pid = self._read_pid_file()
+
+        try:
+            while 1:
+                os.kill(pid, SIGTERM)
+                time.sleep(0.1)
+        except ProcessLookupError:
+            self._remove_pid_file()
+
+        except TypeError:
+            if self.is_daemon:
+                self.messenger.error('Service already stopped')
+            else:
+                self.logger.error('Service already stopped')
+            sys.exit(1)
+
+        except InterruptedError as err:
+            self.logger.error(err)
+            sys.exit(3)
+
+    def processize(self):
+        """
+        Prepare as a simple process
+        """
+        atexit.register(self.stop)
+        setproctitle.setproctitle(self.name + ' --no-daemon')
+
+        self._write_pid_file(os.getpid())
 
     def daemonize(self):
         """
@@ -139,7 +162,7 @@ class Service:
                 # exit first parent
                 sys.exit(0)
         except OSError as e:
-            sys.stderr.write("fork #1 failed: %d (%s)\n" % (e.errno, e.strerror))
+            self.logger.error("fork #1 failed: {} ({})".format(e.errno, e.strerror))
             sys.exit(1)
 
         # decouple from parent environment
@@ -154,7 +177,7 @@ class Service:
                 # exit from second parent
                 sys.exit(0)
         except OSError as e:
-            sys.stderr.write("fork #2 failed: %d (%s)\n" % (e.errno, e.strerror))
+            self.logger.error("fork #2 failed: {} ({})".format(e.errno, e.strerror))
             sys.exit(1)
 
         # redirect standard file descriptors
@@ -170,25 +193,46 @@ class Service:
         setproctitle.setproctitle(self.name)
 
         # write pid_file
-        atexit.register(remove_pid_file, self.pid_file)
-        write_pid_file(self.pid_file, os.getpid())
+        atexit.register(self._remove_pid_file)
+        self._write_pid_file(os.getpid())
 
     def start(self):
         """
         Start the service
         """
-        check_pid(self.pid_file)
+        if self._check_pid():
+            message = "{} is already running".format(self.name)
+            if self.is_daemon:
+                self.messenger.warning(message)
+            self.logger.warning(message)
+            sys.exit(1)
+
+        message = "Starting service"
+        if self.is_daemon:
+            self.messenger.info(message)
+        self.logger.info(message)
 
         # Start the service
-        self.daemonize()
-        self.run()
+        if self.is_daemon:
+            self.daemonize()
+        else:
+            self.processize()
+
+        try:
+            self.run()
+        except KeyboardInterrupt:
+            pass
 
     def stop(self):
         """
         Stop the service
         """
         # Try killing the Service process
-        kill_pid(self.pid_file)
+        message = "Stopping service"
+        if self.is_daemon:
+            self.messenger.info(message)
+        self.logger.info(message)
+        self._kill_pid()
 
     def restart(self):
         """
@@ -201,17 +245,16 @@ class Service:
         """
         Status the service
         """
+        if not self.is_daemon:
+            sys.exit(0)
+
         # Check for a pid_file to see if the service already runs
-        pid = read_pid_file(self.pid_file)
-
-        check_pid(self.pid_file, True)
-
-        if pid:
-            message = "pid_file %s is running.\n"
+        if self._check_pid():
+            message = "{} is running (PID: {})".format(self.name, self._read_pid_file())
+            self.messenger.info(message)
         else:
-            message = "pid_file %s is stopped.\n"
-
-        sys.stderr.write(message % self.pid_file)
+            message = "{} is stopped".format(self.name)
+            self.messenger.warning(message)
         sys.exit(1)
 
     def run(self):

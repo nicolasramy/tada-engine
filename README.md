@@ -11,7 +11,9 @@ docker run --rm --name cowbell-engine-test -i -t -v $PWD:/app cowbell-engine sh
 
 ## Roadmap
 
-- [ ] xxx
+- [ ] Travis-CI
+- [ ] Coveralls
+- [ ] Pypi
 
 
 ## How to tests?
