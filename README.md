@@ -12,6 +12,9 @@ docker run --rm --name cowbell-engine-test -i -t -v $PWD:/app cowbell-engine sh
 
 ## Roadmap
 
+- [ ] Implement uvloop in Minion
+- [ ] Create a simple solution to add external task
+- [ ] Consolidate Daemon (specially for Proxy)
 - [ ] Travis-CI
 - [ ] Coveralls
 - [ ] Pypi

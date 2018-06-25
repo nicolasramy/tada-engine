@@ -2,10 +2,15 @@
 
 import datetime
 import logging
+import random
+import time
 
+import uvloop
 import zmq
 
 from .. import Service
+
+# TODO: https://stackoverflow.com/questions/43124340/python-3-6-coroutine-was-never-awaited
 
 
 class MinionService(Service):
@@ -43,3 +48,7 @@ class MinionService(Service):
                 "captured": str(datetime.datetime.utcnow())
             }
             self.socket.send_json(data)
+
+            waiting_time = random.randint(1, 3)
+            self.logger.debug("Wait for {}s".format(waiting_time))
+            time.sleep(waiting_time)

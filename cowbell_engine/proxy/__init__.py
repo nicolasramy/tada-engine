@@ -3,6 +3,7 @@
 import asyncio
 import logging
 
+import uvloop
 import zmq
 from zmq.devices.monitoredqueuedevice import ProcessMonitoredQueue
 from zmq.utils.strtypes import asbytes
@@ -67,6 +68,7 @@ class ProxyService(Service):
             self.logger.debug(data)
 
     def run(self):
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
         loop = asyncio.get_event_loop()
 
         tasks = [
