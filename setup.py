@@ -22,7 +22,7 @@ setup(
     entry_points={
         'console_scripts': [
             'cowbell-engine-master=cowbell_engine.__main__:master_command',
-            'cowbell-engine-minion=cowbell_engine.__main__:minion',
+            'cowbell-engine-minion=cowbell_engine.__main__:minion_command',
             'cowbell-engine-proxy=cowbell_engine.__main__:proxy_command',
         ],
     },

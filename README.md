@@ -1,4 +1,5 @@
-# cowbell-engine
+# Cowbell Engine
+A simple workers engine
 
 ## Development
 
