@@ -5,7 +5,7 @@ import logging
 
 import uvloop
 import zmq
-from zmq.devices.monitoredqueuedevice import ProcessMonitoredQueue
+from zmq.devices.monitoredqueuedevice import ThreadMonitoredQueue
 from zmq.utils.strtypes import asbytes
 
 from .. import Service
@@ -37,7 +37,7 @@ class ProxyService(Service):
         in_prefix = asbytes("in")
         out_prefix = asbytes("out")
 
-        self.device = ProcessMonitoredQueue(zmq.XREP, zmq.XREQ, zmq.PUB, in_prefix, out_prefix)
+        self.device = ThreadMonitoredQueue(zmq.XREP, zmq.XREQ, zmq.PUB, in_prefix, out_prefix)
 
         in_address = "tcp://{}:{}".format(self.host, self.frontend_port)
         self.logger.debug("Bind IN: {}".format(in_address))
@@ -64,8 +64,12 @@ class ProxyService(Service):
         self.socket.setsockopt(zmq.SUBSCRIBE, b"")
 
         while True:
-            data = self.socket.recv_multipart()
+            # All messages sent on mons will be multipart,
+            # the first part being the prefix corresponding to the socket that received the message.
+            data = await self.socket.recv_multipart()
             self.logger.debug(data)
+
+            # TODO: Define what to do on monitoring message
 
     def run(self):
         asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
