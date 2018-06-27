@@ -3,6 +3,13 @@ A simple workers engine
 
 ## Development
 
+### Dependencies
+
+- setproctitle
+- termcolor
+- pyzmq
+- uvloop
+
 ### Prepare environment
 
 ```bash
