@@ -5,25 +5,25 @@ import io
 import re
 from setuptools import setup, find_packages
 
-with io.open("cowbell_engine/__init__.py", "rt", encoding="utf8") as file_resource:
+with io.open("tada_engine/__init__.py", "rt", encoding="utf8") as file_resource:
     version = re.search(r"__version__ = \'(.*?)\'", file_resource.read()).group(1)
 
 
 setup(
-    name="cowbell engine",
+    name="tada engine",
     version=version,
     description="Cowbell Engine...",
     author="Nicolas RAMY",
     author_email="nicolas.ramy@darkelda.com",
-    url="https://github.com/nicolasramy/cowbell-engine",
+    url="https://github.com/nicolasramy/tada-engine",
     license="MIT",
     packages=find_packages(),
     include_package_data=True,
     entry_points={
         "console_scripts": [
-            "cowbell-engine-master=cowbell_engine.__main__:master_command",
-            "cowbell-engine-minion=cowbell_engine.__main__:minion_command",
-            "cowbell-engine-proxy=cowbell_engine.__main__:proxy_command",
+            "tada-engine-master=tada_engine.__main__:master_command",
+            "tada-engine-minion=tada_engine.__main__:minion_command",
+            "tada-engine-proxy=tada_engine.__main__:proxy_command",
         ],
     },
     install_requires=[

@@ -1,4 +1,4 @@
-# Cowbell Engine
+# Tada Engine
 A simple workers engine
 
 ## Development
@@ -13,8 +13,8 @@ A simple workers engine
 ### Prepare environment
 
 ```bash
-docker build -t cowbell-engine .
-docker run --rm --name cowbell-engine-test -i -t -v $PWD:/app cowbell-engine sh
+docker build -t tada-engine .
+docker run --rm --name tada-engine-test -i -t -v $PWD:/app tada-engine sh
 ```
 
 ## Roadmap
