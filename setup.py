@@ -10,9 +10,9 @@ with io.open("tada_engine/__init__.py", "rt", encoding="utf8") as file_resource:
 
 
 setup(
-    name="tada engine",
+    name="tada-engine",
     version=version,
-    description="Cowbell Engine...",
+    description="Tada! Engine...",
     author="Nicolas RAMY",
     author_email="nicolas.ramy@darkelda.com",
     url="https://github.com/nicolasramy/tada-engine",

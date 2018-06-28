@@ -10,18 +10,18 @@ from .. import Service
 
 
 class MasterService(Service):
-    NAME = "cowbell-engine-master"
+    NAME = "tada-engine-master"
 
     def __init__(self, config, is_daemon):
         # Get configuration values
-        pid_file = config.get("cowbell-engine", "master_pid_file")
-        log_file = config.get("cowbell-engine", "log_file")
+        pid_file = config.get("tada-engine", "master_pid_file")
+        log_file = config.get("tada-engine", "log_file")
 
-        self.host = config.get("cowbell-engine", "host")
-        self.frontend_port = config.getint("cowbell-engine", "frontend_port")
+        self.host = config.get("tada-engine", "host")
+        self.frontend_port = config.getint("tada-engine", "frontend_port")
 
         try:
-            log_level = getattr(logging, config.get("cowbell-engine", "log_level"))
+            log_level = getattr(logging, config.get("tada-engine", "log_level"))
         except AttributeError:
             log_level = logging.INFO
 

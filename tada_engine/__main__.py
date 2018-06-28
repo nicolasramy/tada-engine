@@ -18,15 +18,15 @@ def default_configuration_filename():
 
 
 def master_command():
-    command_handler('Cowbell Engine Master', MasterService)
+    command_handler('Tada! Engine Master', MasterService)
 
 
 def minion_command():
-    command_handler('Cowbell Engine Minion', MinionService)
+    command_handler('Tada! Engine Minion', MinionService)
 
 
 def proxy_command():
-    command_handler('Cowbell Engine Proxy', ProxyService)
+    command_handler('Tada! Engine Proxy', ProxyService)
 
 
 def command_handler(name, service_class):

@@ -14,18 +14,18 @@ from .. import Service
 
 
 class MinionService(Service):
-    NAME = 'cowbell-engine-minion'
+    NAME = 'tada-engine-minion'
 
     def __init__(self, config, is_daemon):
         # Get configuration values
-        pid_file = config.get('cowbell-engine', 'minion_pid_file')
-        log_file = config.get('cowbell-engine', 'log_file')
+        pid_file = config.get('tada-engine', 'minion_pid_file')
+        log_file = config.get('tada-engine', 'log_file')
 
-        self.host = config.get('cowbell-engine', 'host')
-        self.backend_port = config.getint('cowbell-engine', 'backend_port')
+        self.host = config.get('tada-engine', 'host')
+        self.backend_port = config.getint('tada-engine', 'backend_port')
 
         try:
-            log_level = getattr(logging, config.get('cowbell-engine', 'log_level'))
+            log_level = getattr(logging, config.get('tada-engine', 'log_level'))
         except AttributeError:
             log_level = logging.INFO
 
