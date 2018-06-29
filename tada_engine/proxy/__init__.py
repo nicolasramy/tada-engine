@@ -66,7 +66,7 @@ class ProxyService(Service):
         while True:
             # All messages sent on mons will be multipart,
             # the first part being the prefix corresponding to the socket that received the message.
-            data = await self.socket.recv_multipart()
+            data = self.socket.recv_multipart()
             self.logger.debug(data)
 
             # TODO: Define what to do on monitoring message
