@@ -7,7 +7,6 @@ import sys
 
 from .master import MasterService
 from .minion import MinionService
-from .proxy import ProxyService
 
 
 def default_configuration_filename():
@@ -23,10 +22,6 @@ def master_command():
 
 def minion_command():
     command_handler('Tada! Engine Minion', MinionService)
-
-
-def proxy_command():
-    command_handler('Tada! Engine Proxy', ProxyService)
 
 
 def command_handler(name, service_class):

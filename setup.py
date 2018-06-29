@@ -22,8 +22,7 @@ setup(
     entry_points={
         "console_scripts": [
             "tada-engine-master=tada_engine.__main__:master_command",
-            "tada-engine-minion=tada_engine.__main__:minion_command",
-            "tada-engine-proxy=tada_engine.__main__:proxy_command",
+            "tada-engine-minion=tada_engine.__main__:minion_command"
         ],
     },
     install_requires=[
