@@ -147,6 +147,7 @@ class Service(Logger):
         Prepare as a simple process
         """
         atexit.register(self.stop)
+        atexit.register(self._remove_pid_file)
         setproctitle.setproctitle(self.name + ' --no-daemon')
 
         self._write_pid_file(os.getpid())
