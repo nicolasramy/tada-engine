@@ -26,10 +26,12 @@ setup(
         ],
     },
     install_requires=[
+        "plyvel",
         "pyzmq",
         "setproctitle>=1.1.0",
         "termcolor",
-        "uvloop"
+        "uvloop",
+        "ujson"
     ],
     tests_require=[
         "coverage>=4.5.1",
