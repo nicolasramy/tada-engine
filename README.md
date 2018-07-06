@@ -4,6 +4,10 @@ A simple workers engine
 
 ## Development
 
+[![Travis CI](https://travis-ci.org/nicolasramy/tada-engine.svg?branch=master)](https://travis-ci.org/nicolasramy/tada-engine)
+[![Coveralls](https://coveralls.io/repos/github/nicolasramy/tada-engine/badge.svg?branch=master)](https://coveralls.io/github/nicolasramy/tada-engine?branch=master)
+[![Coveralls](https://coveralls.io/repos/github/nicolasramy/tada-engine/badge.svg?branch=develop)](https://coveralls.io/github/nicolasramy/tada-engine?branch=develop)
+
 ### Dependencies
 
 - plyvel
