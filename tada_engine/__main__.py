@@ -5,6 +5,7 @@ import configparser
 import os
 import sys
 
+from .admin import AdminService
 from .master import MasterService
 from .minion import MinionService
 
@@ -18,6 +19,10 @@ def default_configuration_filename():
 
 def master_command():
     command_handler('Tada! Engine Master', MasterService)
+
+
+def admin_command():
+    command_handler('Tada! Engine Admin', AdminService)
 
 
 def minion_command():
@@ -37,10 +42,10 @@ def command_handler(name, service_class):
     config = configparser.ConfigParser()
     config.read_file(open(default_configuration_filename()))
 
-    proxy_instance = service_class(config, not args.no_daemon)
+    service_instance = service_class(config, not args.no_daemon)
 
-    if args.action in dir(proxy_instance):
-        getattr(proxy_instance, args.action)()
+    if args.action in dir(service_instance):
+        getattr(service_instance, args.action)()
         sys.exit(0)
 
     else:

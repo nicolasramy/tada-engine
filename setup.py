@@ -21,6 +21,7 @@ setup(
     include_package_data=True,
     entry_points={
         "console_scripts": [
+            "tada-engine-admin=tada_engine.__main__:admin_command",
             "tada-engine-master=tada_engine.__main__:master_command",
             "tada-engine-minion=tada_engine.__main__:minion_command"
         ],

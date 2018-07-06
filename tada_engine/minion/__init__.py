@@ -22,7 +22,7 @@ class MinionService(Service):
     def __init__(self, config, is_daemon):
         # Get configuration values
         pid_file = config.get("tada-engine", "minion_pid_file")
-        log_file = config.get("tada-engine", "log_file")
+        log_file = config.get("tada-engine", "admin_log_file")
 
         self.host = config.get("tada-engine", "host")
         self.backend_port = config.getint("tada-engine", "backend_port")
