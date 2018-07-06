@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 
-import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import datetime
 import logging
+import os
 
-import uvloop
+import plyvel
 import zmq
 from zmq.devices.monitoredqueuedevice import ThreadMonitoredQueue
 from zmq.utils.strtypes import asbytes
@@ -34,7 +35,12 @@ class MasterService(Service):
 
         super(MasterService, self).__init__(self.NAME, pid_file, log_level, log_file, is_daemon=is_daemon)
 
-    async def _monitored_queue(self):
+        if not os.path.exists(config.get("tada-engine", "data_path")):
+            os.mkdir(config.get("tada-engine", "data_path"))
+
+        self.cache = plyvel.DB(config.get("tada-engine", "master_cache"), create_if_missing=True)
+
+    def _monitored_queue(self):
         in_prefix = asbytes("in")
         out_prefix = asbytes("out")
 
@@ -55,11 +61,11 @@ class MasterService(Service):
         self.device.setsockopt_in(zmq.RCVHWM, 1)
         self.device.setsockopt_out(zmq.SNDHWM, 1)
 
-        self.logger.info("Start Proxy/MonitoredQueue")
+        self.logger.info("Start MonitoredQueue")
         self.device.start()
 
-    async def _monitor(self):
-        self.logger.info("Start Proxy/Monitor")
+    def _monitor(self):
+        self.logger.info("Start Monitor")
         self.socket = self.context.socket(zmq.SUB)
         self.socket.connect("tcp://{}:{}".format(self.host, self.monitoring_port))
         self.socket.setsockopt(zmq.SUBSCRIBE, b"")
@@ -72,8 +78,8 @@ class MasterService(Service):
 
             # TODO: Define what to do on monitoring message
 
-    async def _scheduler(self):
-        self.logger.info("Start Master")
+    def _scheduler(self):
+        self.logger.info("Start Scheduler")
         self.socket = self.context.socket(zmq.REQ)
 
         address = "tcp://{}:{}".format(self.host, self.frontend_port)
@@ -96,17 +102,11 @@ class MasterService(Service):
             request_num += 1
 
     def run(self):
-        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-        loop = asyncio.get_event_loop()
-
         tasks = [
-            asyncio.ensure_future(self._monitored_queue()),
-            asyncio.ensure_future(self._monitor()),
-            asyncio.ensure_future(self._scheduler())
+            self._monitored_queue,
+            self._monitor,
+            self._scheduler
         ]
 
-        loop.run_until_complete(asyncio.wait(tasks))
-        loop.close()
-
-
-
+        with ThreadPoolExecutor(max_workers=len(tasks)) as thread_pool_executor:
+            futures = [thread_pool_executor.submit(task) for task in tasks]
