@@ -1,25 +1,30 @@
 # -*- coding: utf-8 -*-
 
-from concurrent.futures import ThreadPoolExecutor
+import asyncio
+import concurrent.futures.thread
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import datetime
 import logging
 import os
 
+import uvloop
 import plyvel
+import ujson
 import zmq
 from zmq.devices.monitoredqueuedevice import ThreadMonitoredQueue
 from zmq.utils.strtypes import asbytes
 
 from .. import Service
+from ..core import Scheduler
 
 
-class MasterService(Service):
+class MasterService(Service, Scheduler):
     NAME = "tada-engine-master"
 
     def __init__(self, config, is_daemon):
         # Get configuration values
         pid_file = config.get("tada-engine", "master_pid_file")
-        log_file = config.get("tada-engine", "log_file")
+        log_file = config.get("tada-engine", "engine_log_file")
 
         self.host = config.get("tada-engine", "host")
         self.frontend_port = config.getint("tada-engine", "frontend_port")
@@ -38,9 +43,9 @@ class MasterService(Service):
         if not os.path.exists(config.get("tada-engine", "data_path")):
             os.mkdir(config.get("tada-engine", "data_path"))
 
-        self.cache = plyvel.DB(config.get("tada-engine", "master_cache"), create_if_missing=True)
+        self.cache_path = config.get("tada-engine", "master_cache")
 
-    def _monitored_queue(self):
+    async def _monitored_queue(self):
         in_prefix = asbytes("in")
         out_prefix = asbytes("out")
 
@@ -64,49 +69,98 @@ class MasterService(Service):
         self.logger.info("Start MonitoredQueue")
         self.device.start()
 
-    def _monitor(self):
-        self.logger.info("Start Monitor")
-        self.socket = self.context.socket(zmq.SUB)
-        self.socket.connect("tcp://{}:{}".format(self.host, self.monitoring_port))
-        self.socket.setsockopt(zmq.SUBSCRIBE, b"")
-
+    async def _supervisor(self):
+        # TODO: Create and handle PUB/SUB
+        self.logger.info("Start Supervisor")
         while True:
-            # All messages sent on mons will be multipart,
-            # the first part being the prefix corresponding to the socket that received the message.
-            data = self.socket.recv_multipart()
-            self.logger.debug(data)
+            pass
 
-            # TODO: Define what to do on monitoring message
+    def get_waiting_task(self):
+        # Retrieve tasks to execute
+        self.cache = plyvel.DB(self.cache_path, create_if_missing=True)
+        with self.cache.snapshot() as cache_snapshot:
+            for identifier, description in cache_snapshot.iterator(prefix=b"WAITING/"):
+                self.cache.close()
+                yield (identifier, description)
 
-    def _scheduler(self):
+    async def _scheduler(self):
         self.logger.info("Start Scheduler")
-        self.socket = self.context.socket(zmq.REQ)
+        self.socket = self.context.socket(zmq.REP)
 
-        address = "tcp://{}:{}".format(self.host, self.frontend_port)
+        address = "tcp://{}:{}".format(self.host, self.backend_port)
         self.logger.debug("Connect to {}".format(address))
         self.socket.connect(address)
 
-        self.logger.debug("Prepare before loop")
-        request_num = 1
+        self.logger.debug("Scheduler loop...")
 
         while True:
-            data = {
-                "request": request_num,
-                "captured": str(datetime.datetime.utcnow())
-            }
-            self.socket.send_json(data)
+            # Receive work request
+            task = self.socket.recv_json()
 
-            message = self.socket.recv_json()
-            self.logger.debug(message)
+            self.logger.debug("Task received: {}".format(task))
 
-            request_num += 1
+            if not task:
+                try:
+                    self.logger.debug("Empty task")
+
+                    identifier, description = next(self.get_waiting_task())
+
+                    self.logger.debug("Job: {}".format(identifier))
+
+                    # Remove current identifier
+                    self.cache = plyvel.DB(self.cache_path, create_if_missing=True)
+                    self.cache.delete(identifier)
+                    self.cache.close()
+
+                    # Load task description
+                    task = self.decode_task(description)
+
+                    # Change task status to PENDING
+                    identifier = self.change_status(identifier, "PENDING")
+                    self.cache = plyvel.DB(self.cache_path, create_if_missing=True)
+                    self.cache.put(identifier, description)
+                    self.cache.close()
+
+                    task["uid"] = str(identifier)
+                    # self.logger.info(type(task))
+                    # self.logger.info(task)
+
+                    # Send task to execute to worker
+                    # self.socket.send_json(task)
+
+                except StopIteration:
+                    pass
+
+            else:
+                self.logger.debug("Do something else")
+                identifier = task["uid"]
+                identifier = self.change_status(identifier, task["status"])
+
+                task = self.encode_task(task)
+
+                self.cache = plyvel.DB(self.cache_path, create_if_missing=True)
+                self.cache.put(identifier, self._to_bytes(task))
+                self.cache.close()
+
+            self.socket.send_json(task)
+
+            # Add sleep?
 
     def run(self):
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+        loop = asyncio.get_event_loop()
+
         tasks = [
-            self._monitored_queue,
-            self._monitor,
-            self._scheduler
+            asyncio.ensure_future(self._monitored_queue()),
+            asyncio.ensure_future(self._scheduler()),
+            # asyncio.ensure_future(self._supervisor())
         ]
 
-        with ThreadPoolExecutor(max_workers=len(tasks)) as thread_pool_executor:
-            futures = [thread_pool_executor.submit(task) for task in tasks]
+        try:
+            loop.run_until_complete(asyncio.wait(tasks))
+
+        except KeyboardInterrupt:
+            pass
+
+        finally:
+            loop.close()

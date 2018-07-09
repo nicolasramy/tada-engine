@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import asyncio
 import concurrent.futures
 import datetime
 import logging
@@ -22,10 +23,10 @@ class MinionService(Service):
     def __init__(self, config, is_daemon):
         # Get configuration values
         pid_file = config.get("tada-engine", "minion_pid_file")
-        log_file = config.get("tada-engine", "admin_log_file")
+        log_file = config.get("tada-engine", "engine_log_file")
 
         self.host = config.get("tada-engine", "host")
-        self.backend_port = config.getint("tada-engine", "backend_port")
+        self.frontend_port = config.getint("tada-engine", "frontend_port")
 
         try:
             log_level = getattr(logging, config.get("tada-engine", "log_level"))
@@ -37,7 +38,7 @@ class MinionService(Service):
         if not os.path.exists(config.get("tada-engine", "data_path")):
             os.mkdir(config.get("tada-engine", "data_path"))
 
-        self.cache = plyvel.DB(config.get("tada-engine", "minion_cache"))
+        self.cache = plyvel.DB(config.get("tada-engine", "minion_cache"), create_if_missing=True)
 
     def _pre_exec(self):
         # Retrieve external resource
@@ -51,28 +52,62 @@ class MinionService(Service):
     def _post_exec(self):
         pass
 
-    def run(self):
-        self.logger.debug("Initialize Context and create a REP's socket")
+    async def _handle_request(self):
+        self.logger.debug("Initialize Context and create a REQ's socket")
         self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REP)
+        self.socket = self.context.socket(zmq.REQ)
 
-        self.logger.debug("Connect to Proxy")
-        self.socket.connect("tcp://{}:{}".format(self.host, self.backend_port))
-
-        # TODO:
-        # - ThreadPool Executor
-        # - notifications / results layer
+        address = "tcp://{}:{}".format(self.host, self.frontend_port)
+        self.logger.debug("Connect to {}".format(address))
+        self.socket.connect(address)
 
         while True:
-            message = self.socket.recv_json()
-            self.logger.debug(message)
+            # Ask for work
+            self.socket.send_json(False)
 
-            data = {
-                "received": message,
-                "captured": str(datetime.datetime.utcnow())
-            }
-            self.socket.send_json(data)
+            task = self.socket.recv_json()
+            self.logger.debug(task)
 
-            waiting_time = random.randint(1, 3)
-            self.logger.debug("Wait for {}s".format(waiting_time))
-            time.sleep(waiting_time)
+            if task:
+
+                # Add work in execution pool if possible
+                task["status"] = random.choice(["RUNNING", "WAITING", "FAILURE"])
+
+                # Response to Master about the state
+                waiting_time = random.randint(1, 3)
+                self.logger.debug("Wait for {}s".format(waiting_time))
+                time.sleep(waiting_time)
+
+                task["status"] = random.choice(["WAITING", "FAILURE"])
+                task["captured"] = str(datetime.datetime.utcnow())
+
+                self.socket.send_json(task)
+
+                task = self.socket.recv_json()
+                self.logger.debug(task)
+
+            else:
+                # Response to Master about the state
+                waiting_time = random.randint(1, 3)
+                self.logger.debug("Wait for {}s".format(waiting_time))
+                time.sleep(waiting_time)
+
+
+
+    def run(self):
+        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+        loop = asyncio.get_event_loop()
+
+        tasks = [
+            asyncio.ensure_future(self._handle_request())
+        ]
+
+        try:
+            loop.run_until_complete(asyncio.wait(tasks))
+
+        except KeyboardInterrupt:
+            pass
+
+        finally:
+            loop.close()
+

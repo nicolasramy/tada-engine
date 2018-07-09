@@ -16,3 +16,7 @@ RUN apk update && apk upgrade
 RUN apk add -f build-base python3-dev leveldb-dev czmq-dev
 
 RUN python setup.py install
+
+# Bonus tools
+RUN apk add -f htop
+RUN pip install leveldb-cli

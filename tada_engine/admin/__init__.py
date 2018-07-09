@@ -27,6 +27,20 @@ class AdminService(Service):
 
         super(AdminService, self).__init__(self.NAME, pid_file, log_level, log_file, is_daemon=is_daemon)
 
+    def _monitor(self):
+        self.logger.info("Start Monitor")
+        self.socket = self.context.socket(zmq.SUB)
+        self.socket.connect("tcp://{}:{}".format(self.host, self.monitoring_port))
+        self.socket.setsockopt(zmq.SUBSCRIBE, b"")
+
+        while True:
+            # All messages sent on mons will be multipart,
+            # the first part being the prefix corresponding to the socket that received the message.
+            data = self.socket.recv_multipart()
+            self.logger.debug(data)
+
+            # TODO: Define what to do on monitoring message
+
     @staticmethod
     def http_handler(environ, start_response):
         status = "{} {}".format(HTTPStatus.OK.value, HTTPStatus.OK.phrase)
