@@ -27,14 +27,19 @@ setup(
         ],
     },
     install_requires=[
+        "aiofiles",
         "plyvel",
+        "python-magic",
         "pyzmq",
+        "requests",
         "setproctitle>=1.1.0",
         "termcolor",
         "uvloop",
         "ujson"
     ],
     tests_require=[
+        # "asynctest",
+        # "aioresponses",
         "coverage>=4.5.1",
     ],
     test_suite="tests",

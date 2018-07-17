@@ -19,3 +19,18 @@ data_path = /tmp/var/lib/tada-engine/
 minion_cache = /tmp/var/lib/tada-engine/minion
 master_cache = /tmp/var/lib/tada-engine/master
 """
+
+
+def add(taskrunner_class, row):
+    try:
+        a, b = row.split(',')
+        a = int(a)
+        b = int(b)
+        result = a + b
+
+    except (AttributeError, Exception):
+        result = None
+
+    finally:
+        return result
+

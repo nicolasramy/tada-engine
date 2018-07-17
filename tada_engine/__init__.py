@@ -4,6 +4,7 @@ import atexit
 import os
 import logging
 import logging.handlers
+import pdb
 import time
 from signal import SIGTERM
 import sys
@@ -220,9 +221,14 @@ class Service(Logger):
             self.processize()
 
         try:
-            self.run()
+            if self.is_daemon:
+                self.run()
+            else:
+                pdb.run(self.run())
         except KeyboardInterrupt:
             pass
+        finally:
+            self.stop()
 
     def stop(self):
         """
