@@ -1,0 +1,18 @@
+sudo: false
+language: python
+
+python:
+  - "3.6"
+
+install:
+  - pip install coverage
+  - pip install python-coveralls
+  - mkdir -p /tmp/var/run
+  - mkdir -p /tmp/var/log
+  - mkdir -p /tmp/var/lib/tada-engine
+
+script:
+  - coverage run ./setup.py test
+
+after_success:
+  - coveralls
