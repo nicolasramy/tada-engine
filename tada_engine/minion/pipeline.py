@@ -11,6 +11,7 @@ from multiprocessing import Process
 import os
 import pickle
 import shelve
+import shutil
 import socket
 import tempfile
 import uuid
@@ -46,19 +47,25 @@ class AbstractPipeline(ABC):
         # elif isinstance(data, dict):
         #     data = data.encode("utf-8")
 
-        return hashlib.sha512(data).hexdigest()
+        return hashlib.sha512(data)
+
+    def _generate_string_key(self, data):
+        key = self._generate_key(data)
+        return key.hexdigest()
+
+    def _generate_bytes_key(self, data):
+        key = self._generate_key(data)
+        return key.digest()
 
 
 class InMemoryPipeline(AbstractPipeline):
     def __init__(self, name, hostname=DEFAULT_HOSTNAME, port=DEFAULT_PORT):
         super(InMemoryPipeline, self).__init__(name, hostname, port)
 
-        self.filename = "/tmp/{}.db".format(self.name)
-
-        # if os.path.exists(self.filename):
+        self.filename = "/tmp/{}.db".format(self.uuid)
 
     def add(self, data):
-        key = self._generate_key(data)
+        key = self._generate_string_key(data)
 
         with shelve.open(self.filename) as pipeline_resource:
             if key in pipeline_resource:
@@ -97,18 +104,69 @@ class InMemoryPipeline(AbstractPipeline):
             return True
 
 
-class FilePipeline(AbstractPipeline):
-    def __init__(self, name):
-        super(FilePipeline, self).__init__(name)
-
-        self.pipe = tempfile.NamedTemporaryFile(prefix='pipe_')
-
-
 class LevelDBPipeline(AbstractPipeline):
-    def __init__(self, name, address='/tmp/tada-engine'):
-        super(LevelDBPipeline, self).__init__(name, address)
+    def __init__(self, name, hostname=DEFAULT_HOSTNAME, port=DEFAULT_PORT):
+        super(LevelDBPipeline, self).__init__(name, hostname, port)
 
-        self.pipe = plyvel.DB(self.address, create_if_missing=True)
+        self.filename = "/tmp/{}.db".format(self.uuid)
 
+    @staticmethod
+    def _encode(data):
+        return ujson.dumps(data, sort_keys=True).encode("utf-8")
 
-        # self.cache = plyvel.DB(self.cache_path, create_if_missing=True)
+    @staticmethod
+    def _decode(data):
+        return ujson.loads(data)
+
+    def add(self, data):
+        key = self._generate_bytes_key(data)
+        try:
+            pipeline_resource = plyvel.DB(self.filename, create_if_missing=True)
+            pipeline_resource.put(key, self._encode(data))
+            response = True
+        except (plyvel.Error, TypeError):
+            response = False
+        finally:
+            pipeline_resource.close
+            return response
+
+    def remove(self, key):
+        try:
+            pipeline_resource = plyvel.DB(self.filename)
+            if pipeline_resource.get(key):
+                pipeline_resource.delete(key, sync=True)
+                response = True
+            else:
+                response = False
+        except (plyvel.Error, TypeError):
+            response = False
+        finally:
+            pipeline_resource.close()
+            return response
+
+    def pop(self):
+        try:
+            pipeline_resource = plyvel.DB(self.filename)
+            iterator = pipeline_resource.iterator(reverse=True)
+            key, value = next(iterator)
+            pipeline_resource.delete(key, sync=True)
+            return key, self._decode(value)
+        except (plyvel.Error, TypeError):
+            return None, None
+
+    def get(self, key):
+        try:
+            pipeline_resource = plyvel.DB(self.filename)
+            response = self._decode(pipeline_resource.get(key))
+        except (plyvel.Error, TypeError):
+            response = None
+        finally:
+            pipeline_resource.close()
+            return response
+
+    def clear(self):
+        if os.path.exists(self.filename):
+            shutil.rmtree(self.filename, ignore_errors=True)
+            return True
+        else:
+            return False

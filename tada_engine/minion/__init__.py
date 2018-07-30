@@ -17,7 +17,7 @@ import zmq
 
 from .. import Logger, Service
 # from ..core import multiprocessing_pool_initializer
-from .pipeline import AbstractPipeline, InMemoryPipeline, FilePipeline
+from .pipeline import AbstractPipeline, InMemoryPipeline, LevelDBPipeline
 from .task_runner import AbstractTaskRunner, SimpleTaskRunner, AsyncTaskRunner, ConcurrentTaskRunner
 
 
@@ -155,5 +155,5 @@ __all__ = [
     'ConcurrentTaskRunner',
     'AbstractPipeline',
     'InMemoryPipeline',
-    'FilePipeline'
+    'LevelDBPipeline'
 ]

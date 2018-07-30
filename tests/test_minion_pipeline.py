@@ -1,60 +1,104 @@
 # -*- coding: utf-8 -*-
 
-import os
+import hashlib
 import unittest
 
-from tada_engine.minion import AbstractPipeline, InMemoryPipeline, FilePipeline
+from tada_engine.minion import AbstractPipeline, InMemoryPipeline, LevelDBPipeline
 
 
 class AbstractPipelineTest(unittest.TestCase):
+    def setUp(self):
+        self.pipeline = AbstractPipeline('hello')
 
-    def test_hash_string(self):
-        pipeline = AbstractPipeline('hello')
-        self.assertEqual(
-            pipeline._generate_key('Hello World'),
-            '2c74fd17edafd80e8447b0d46741ee243b7eb74dd2149a0ab1b9246fb30382f27e853d8585719e0e67cbda0daa8f51671064615d64'
-            '5ae27acb15bfb1447f459b'
-        )
+    def test_generate_key(self):
+        self.assertIsInstance(self.pipeline._generate_key('Hello World'), hashlib._hashlib.HASH)
+
+    def test_generate_string_key(self):
+        string_key = hashlib.sha512(b'Hello World').hexdigest()
+        self.assertEqual(self.pipeline._generate_string_key('Hello World'), string_key)
+
+    def test_generate_bytes_key(self):
+        bytes_key = hashlib.sha512(b'Hello World').digest()
+        self.assertEqual(self.pipeline._generate_bytes_key('Hello World'), bytes_key)
 
 
 class InMemoryPipelineTest(unittest.TestCase):
+    def setUp(self):
+        self.pipeline = InMemoryPipeline('inmemory_test_pipeline')
+
+    def tearDown(self):
+        self.pipeline.clear()
+
     def test_add(self):
-        pipeline = InMemoryPipeline('test_pipeline')
-        self.assertTrue(pipeline.add({"message": "Hello World"}))
-        self.assertTrue(pipeline.clear())
+        self.assertTrue(self.pipeline.add({"message": "Hello World"}))
 
     def test_remove(self):
-        pipeline = InMemoryPipeline('test_pipeline')
-        pipeline.add({"message1": "Hello World"})
-        pipeline.add({"message2": "Bonjour le monde"})
-        pipeline.add({"message3": "Hola Mundo"})
+        self.pipeline.add({"message1": "Hello World"})
+        self.pipeline.add({"message2": "Bonjour le monde"})
+        self.pipeline.add({"message3": "Hola Mundo"})
 
-        key_to_remove = pipeline._generate_key({"message2": "Bonjour le monde"})
+        key_to_remove = self.pipeline._generate_string_key({"message2": "Bonjour le monde"})
 
-        self.assertTrue(pipeline.remove(key_to_remove))
-        self.assertFalse(pipeline.remove(key_to_remove))
-        self.assertTrue(pipeline.clear())
+        self.assertTrue(self.pipeline.remove(key_to_remove))
+        self.assertFalse(self.pipeline.remove(key_to_remove))
 
     def test_pop(self):
-        pipeline = InMemoryPipeline('test_pipeline')
-        pipeline.add({"message1": "Hello World"})
-        pipeline.add({"message2": "Bonjour le monde"})
-        pipeline.add({"message3": "Hola Mundo"})
+        self.pipeline.add({"message1": "Hello World"})
+        self.pipeline.add({"message2": "Bonjour le monde"})
+        self.pipeline.add({"message3": "Hola Mundo"})
 
         data_popped = {"message3": "Hola Mundo"}
-        key_popped = pipeline._generate_key(data_popped)
+        key_popped = self.pipeline._generate_string_key(data_popped)
 
-        self.assertEqual(pipeline.pop(), (key_popped, data_popped))
-        self.assertTrue(pipeline.clear())
+        self.assertEqual(self.pipeline.pop(), (key_popped, data_popped))
 
     def test_get(self):
-        pipeline = InMemoryPipeline('test_pipeline')
-        pipeline.add({"message1": "Hello World"})
-        pipeline.add({"message2": "Bonjour le monde"})
-        pipeline.add({"message3": "Hola Mundo"})
+        self.pipeline.add({"message1": "Hello World"})
+        self.pipeline.add({"message2": "Bonjour le monde"})
+        self.pipeline.add({"message3": "Hola Mundo"})
 
         data = {"message1": "Hello World"}
-        key_to_get = pipeline._generate_key(data)
+        key_to_get = self.pipeline._generate_string_key(data)
 
-        self.assertEqual(pipeline.get(key_to_get), data)
-        self.assertTrue(pipeline.clear())
+        self.assertEqual(self.pipeline.get(key_to_get), data)
+
+
+class LevelDBPipelineTest(unittest.TestCase):
+    def setUp(self):
+        self.pipeline = LevelDBPipeline('leveldb_test_pipeline')
+
+    def tearDown(self):
+        self.pipeline.clear()
+
+    def test_add(self):
+        self.assertTrue(self.pipeline.add({"message": "Hello World"}))
+
+    def test_remove(self):
+        self.pipeline.add({"message1": "Hello World"})
+        self.pipeline.add({"message2": "Bonjour le monde"})
+        self.pipeline.add({"message3": "Hola Mundo"})
+
+        key_to_remove = self.pipeline._generate_bytes_key({"message2": "Bonjour le monde"})
+
+        self.assertTrue(self.pipeline.remove(key_to_remove))
+        self.assertFalse(self.pipeline.remove(key_to_remove))
+
+    def test_pop(self):
+        self.pipeline.add({"message1": "Hello World"})
+        self.pipeline.add({"message2": "Bonjour le monde"})
+        self.pipeline.add({"message3": "Hola Mundo"})
+
+        data_popped = {"message3": "Hola Mundo"}
+        key_popped = self.pipeline._generate_bytes_key(data_popped)
+
+        self.assertEqual(self.pipeline.pop(), (key_popped, data_popped))
+
+    def test_get(self):
+        self.pipeline.add({"message1": "Hello World"})
+        self.pipeline.add({"message2": "Bonjour le monde"})
+        self.pipeline.add({"message3": "Hola Mundo"})
+
+        data = {"message1": "Hello World"}
+        key_to_get = self.pipeline._generate_bytes_key(data)
+
+        self.assertEqual(self.pipeline.get(key_to_get), data)
