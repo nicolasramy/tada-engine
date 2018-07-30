@@ -16,7 +16,8 @@ import uvloop
 import zmq
 
 from .. import Logger, Service
-from ..core import multiprocessing_pool_initializer
+# from ..core import multiprocessing_pool_initializer
+from .pipeline import AbstractPipeline, InMemoryPipeline, FilePipeline
 from .task_runner import AbstractTaskRunner, SimpleTaskRunner, AsyncTaskRunner, ConcurrentTaskRunner
 
 
@@ -151,5 +152,8 @@ __all__ = [
     'AbstractTaskRunner',
     'SimpleTaskRunner',
     'AsyncTaskRunner',
-    'ConcurrentTaskRunner'
+    'ConcurrentTaskRunner',
+    'AbstractPipeline',
+    'InMemoryPipeline',
+    'FilePipeline'
 ]

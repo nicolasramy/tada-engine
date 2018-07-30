@@ -27,22 +27,6 @@ class AbstractTaskRunner(ABC):
         self.queue_in = None
         self.queue_out = None
 
-    @staticmethod
-    def _generate_key(data):
-        if isinstance(data, bytes):
-            data = data
-
-        elif isinstance(data, str):
-            data = data.encode("utf-8")
-
-        else:
-            data = ujson.dumps(data, sort_keys=True).encode("utf-8")
-
-        # elif isinstance(data, dict):
-        #     data = data.encode("utf-8")
-
-        return hashlib.sha512(data).hexdigest()
-
     def _get_extension(self):
         return magic.from_file(self._input, mime=True)
 

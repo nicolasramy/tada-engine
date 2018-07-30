@@ -11,8 +11,17 @@ class Job(Enum):
     SUCCESS = 4
     FAILURE = 5
 
+    TRANSITIONS = {
+        WAITING: [],
+        PENDING: [],
+        RUNNING: [],
+        SUCCESS: [],
+        FAILURE: []
+    }
+
     def __init__(self):
-        pass
+        self.current_state = self.WAITING
+        self.previous_state = None
 
     def validate_input(self):
         pass
@@ -22,3 +31,5 @@ class Job(Enum):
 
     def run(self):
         pass
+
+
